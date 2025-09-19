@@ -5,7 +5,7 @@
   "scripts": {
     "build": "vite build && electron-builder",
     "dev": "cross-env NODE_ENV=development concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
-    "clean": "rimraf build dist .minecraft",
+    "clean": "rimraf build dist .minecraft .temp",
     "win-test": "\".\\build\\win-unpacked\\nmcl\""
   },
   "main": "./backend/index.js",
