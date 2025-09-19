@@ -1,0 +1,48 @@
+{
+  "name": "nmcl",
+  "version": "0.1.0",
+  "description": "",
+  "scripts": {
+    "build": "vite build && electron-builder",
+    "dev": "cross-env NODE_ENV=development concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "clean": "rimraf build dist .minecraft",
+    "win-test": "\".\\build\\win-unpacked\\nmcl\""
+  },
+  "main": "./backend/index.js",
+  "build": {
+    "directories": {
+      "output": "build"
+    },
+    "files": [
+      "backend/**/*",
+      "dist/**/*"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        "dir"
+      ]
+    }
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "date-fns": "^4.1.0",
+    "express": "^5.1.0",
+    "make-fetch-happen": "^15.0.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.0.0",
+    "electron": "^38.1.0",
+    "electron-builder": "^26.0.12",
+    "rimraf": "^6.0.1",
+    "vite-react": "^4.0.0",
+    "wait-on": "^8.0.5"
+  }
+}
