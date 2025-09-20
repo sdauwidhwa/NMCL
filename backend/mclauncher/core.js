@@ -183,10 +183,8 @@ const create_instance = async (inst_name, [vanilla, modloader_type, modloader_ve
   await fs.promises.mkdir(pjoin(DIR_CUR_INST), { recursive: true });
   await fs.promises.writeFile(pjoin(DIR_CUR_INST, 'manifest.json'), JSON.stringify(manifest));
   await fs.promises.writeFile(pjoin(DIR_CUR_INST, 'manifest_patches.json'), JSON.stringify(patches));
-
-
-  download_resources(inst_name);
-
+  
+  await download_resources(inst_name);  
 };
 
 
