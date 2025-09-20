@@ -222,7 +222,7 @@ export const launch_instance = async (inst_name) => {
 
 
       zip.getEntries().forEach(entry => {
-        if (entry.entryName.endsWith('.dll') || entry.entryName.endsWith('.so')) {
+        if (entry.entryName.endsWith(lib_suffix) || entry.entryName.endsWith('.so')) {
           const unpack_path = pjoin(DIR_NATIVE, path.basename(entry.entryName));
           fs.writeFileSync(unpack_path, entry.getData());
         }
