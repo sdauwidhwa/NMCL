@@ -47,3 +47,51 @@ export const CompSingleSelectionScrolledFiltered = ({ style, content_style, onSe
     </div >
   );
 };
+
+
+export const Notification = ({ id, message, type = 'info', onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose(id);
+    }, 3000); // auto close after 3 seconds
+    return () => clearTimeout(timer);
+  }, [id, onClose]);
+
+  const styles = {
+    padding: '10px 20px',
+    borderRadius: '5px',
+    marginBottom: '10px',
+    backgroundColor: type === 'error' ? '#e74c3c' : '#2ecc71',
+    color: 'white',
+    boxShadow: '0px 2px 6px rgba(0,0,0,0.3)',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minWidth: '250px',
+  };
+
+  return (
+    <div style={styles}>
+      <span>{message}</span>
+      <button
+        onClick={() => onClose(id)}
+        style={{
+          marginLeft: '10px',
+          background: 'transparent',
+          border: 'none',
+          color: 'white',
+          cursor: 'pointer',
+          fontWeight: 'bold',
+        }}
+      >
+        ×
+      </button>
+    </div>
+  );
+};
+
+
+
+
+
+ 

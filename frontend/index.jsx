@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactDOM from 'react-dom/client';
 
-import { CompSingleSelectionScrolledFiltered } from "./lib";
+import { CompSingleSelectionScrolledFiltered, Notification } from "./lib";
 
-// import { button } from "@/components/ui/button";
-// import { Card, CardContent } from "@/components/ui/card";
+
 
 let InstanceDetail = ({ instanceName }) => {
   return (<div>
@@ -15,7 +14,7 @@ let InstanceDetail = ({ instanceName }) => {
 
 
 
-const PageInstanceCreation = ({ refreshInstances }) => {
+const PageInstanceCreation = ({ refreshInstances, addNotification }) => {
   const NONE = "None";
   const FABRICS = "Fabrics";
   const MODLOADER_TYPES = [NONE, FABRICS];
@@ -63,12 +62,18 @@ const PageInstanceCreation = ({ refreshInstances }) => {
   const comp_button_create_and_input_name = (<div>
     <button onClick={async () => {
       // console.log(vanilla_selected, modloader_type_selected, modloader_version_selected);
-      if (modloader_type_selected === NONE) {
-        window.api.create_instance(new_instance_name, [vanilla_selected, null, null]);
-      } else {
-        window.api.create_instance(new_instance_name, [vanilla_selected, modloader_type_selected, modloader_version_selected]);
-      }
+      try {
 
+        if (modloader_type_selected === NONE) {
+          await window.api.create_instance(new_instance_name, [vanilla_selected, null, null]);
+        } else {
+          await window.api.create_instance(new_instance_name, [vanilla_selected, modloader_type_selected, modloader_version_selected]);
+        }
+        addNotification(`Instance ${new_instance_name} creation completed.`);
+      } catch (err) {
+        console.error(`Instance creation failed`, vanilla_selected, modloader_type_selected, modloader_version_selected, err);
+        addNotification(`Instance ${new_instance_name} creation failed: ${err.message || err}`, "error");
+      }
       refreshInstances();
     }}>Create Instance</button>
 
@@ -105,7 +110,7 @@ const PageInstanceCreation = ({ refreshInstances }) => {
 };
 
 
-function LeftInstanceList({ setContent }) {
+const LeftInstanceList = ({ setContent, addNotification }) => {
 
   const [instanceList, setInstanceList] = useState([]);
   const refreshInstances = async () => {
@@ -121,7 +126,7 @@ function LeftInstanceList({ setContent }) {
   }, []);
 
   return (<div>
-    <div><button onClick={() => { setContent(<PageInstanceCreation refreshInstances={refreshInstances} />); }}>New Instance</button></div>
+    <div><button onClick={() => { setContent(<PageInstanceCreation refreshInstances={refreshInstances} addNotification={addNotification} />); }}>New Instance</button></div>
     <div><button onClick={() => { refreshInstances(); }}>Refresh Instance</button></div>
     {instanceList.map((e, i) => {
       return <div key={i}><button onClick={() => { setContent(<InstanceDetail instanceName={e} />) }}>{e}</button></div>;
@@ -131,7 +136,10 @@ function LeftInstanceList({ setContent }) {
 
 }
 
+let idCounter = 0;
 function App() {
+
+
   const [width, setWidth] = useState(250);
   const resizerRef = useRef(null);
   const isResizing = useRef(false);
@@ -143,6 +151,17 @@ function App() {
         setWidth(newWidth);
       }
     }
+  };
+
+  const [notifications, setNotifications] = useState([]);
+
+  const addNotification = (message, type = 'info') => {
+    const id = idCounter++;
+    setNotifications((prev) => [...prev, { id, message, type }]);
+  };
+
+  const removeNotification = (id) => {
+    setNotifications((prev) => prev.filter((notif) => notif.id !== id));
   };
 
   const onMouseUp = () => {
@@ -164,8 +183,16 @@ function App() {
   </div>);
   return (
     <div className="rootWindow">
+      <div style={{
+        position: 'fixed', top: '6px', right: '6px', zIndex: 1000, display: 'flex', flexDirection: 'column-reverse', alignItems: 'flex-end',
+      }}>
+        {notifications.map((notif) => (
+          <Notification id={notif.id} key={notif.id} message={notif.message} type={notif.type} onClose={removeNotification} />
+        ))}
+      </div>
+
       <div className="noSqueeze" style={{ width, background: "#DFD" }}>
-        <LeftInstanceList setContent={setContent} />
+        <LeftInstanceList setContent={setContent} addNotification={addNotification} />
       </div>
 
       <div ref={resizerRef} onMouseDown={onMouseDown} style={{ width: "3px", minWidth: "3px", cursor: "ew-resize" }} />
