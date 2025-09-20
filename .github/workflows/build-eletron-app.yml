@@ -35,7 +35,8 @@ jobs:
         run: |
           npm run build -- --win --publish=never --dir
           choco install zip -y
-          zip -r ./build/win-unpacked.zip ./build/win-unpacked
+          cd ./build/win-unpacked
+          zip -r ../win-unpacked.zip ./*
           echo "ARTIFACT_PATH=./build/win-unpacked.zip" >> $GITHUB_ENV
 
       - name: Build Electron App (Linux)
@@ -46,6 +47,7 @@ jobs:
           if [[ -f "$ARTIFACT_PATH" ]]; then
             echo "ARTIFACT_PATH=$ARTIFACT_PATH" >> $GITHUB_ENV
           fi
+          
       - name: Build Electron App (macOS)
         if: runner.os == 'macOS'
         run: |
