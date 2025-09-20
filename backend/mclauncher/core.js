@@ -207,9 +207,11 @@ export const launch_instance = async (inst_name) => {
   // unpack native
   fs.mkdirSync(DIR_NATIVE, { recursive: true });
   manifest.libraries.forEach(lib => {
-    const platform = process.platform === 'win32' ? 'natives-windows' :
-      process.platform === 'darwin' ? 'natives-macos' :
-        process.platform === 'linux' ? 'natives-linux' : null;
+    const [platform, lib_suffix] =
+      process.platform === 'win32' ? ['natives-windows', '.dll'] :
+        process.platform === 'darwin' ? ['natives-macos', '.dylib'] :
+          process.platform === 'linux' ? ['natives-linux', '.so'] : null;
+
 
     const lib_name_split = lib.name.split(":");
 

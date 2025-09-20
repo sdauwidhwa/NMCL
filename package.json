@@ -22,6 +22,11 @@
       "target": [
         "dir"
       ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
     }
   },
   "keywords": [],
