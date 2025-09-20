@@ -1,0 +1,78 @@
+name: build-eletron-app
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+
+      - name: Get package info
+        id: package-info
+        run: |
+          echo "name=$(node -p "require('./package.json').name")" >> $GITHUB_OUTPUT
+          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Electron App (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          npm run build -- --win --publish=never --dir
+          choco install zip -y
+          zip -r ./build/win-unpacked.zip ./build/win-unpacked
+          echo "ARTIFACT_PATH=./build/win-unpacked.zip" >> $GITHUB_ENV
+
+      - name: Build Electron App (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          npm run build -- --linux --publish=never
+          ARTIFACT_PATH=$(find ./build -name "*.AppImage" -o -name "*.appimage" | head -1)
+          if [[ -f "$ARTIFACT_PATH" ]]; then
+            echo "ARTIFACT_PATH=$ARTIFACT_PATH" >> $GITHUB_ENV
+          fi
+      - name: Build Electron App (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          npm run build -- --mac --publish=never
+          ARTIFACT_PATH=$(find ./build -name "*.dmg" | head -1)
+          if [[ -f "$ARTIFACT_PATH" ]]; then
+            echo "ARTIFACT_PATH=$ARTIFACT_PATH" >> $GITHUB_ENV
+            echo "macOS DMG size: $(du -h "$ARTIFACT_PATH" | cut -f1)"
+          fi
+
+      - name: Rename artifact
+        if: env.ARTIFACT_PATH != ''
+        run: |
+          filename="${{ env.ARTIFACT_PATH }}"
+          ext="${filename##*.}"
+          newname="${{ steps.package-info.outputs.name }}-${{ steps.package-info.outputs.version }}-${{ runner.os }}.${ext}"
+          mv "$filename" "$newname"
+          echo "RENAMED_ARTIFACT=$newname" >> $GITHUB_ENV
+
+      - name: Create Release
+        if: env.RENAMED_ARTIFACT != ''
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ steps.package-info.outputs.name }} ${{ steps.package-info.outputs.version }}
+          tag_name: v${{ steps.package-info.outputs.version }}
+          files: ${{ env.RENAMED_ARTIFACT }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
