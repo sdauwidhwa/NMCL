@@ -183,8 +183,8 @@ const create_instance = async (inst_name, [vanilla, modloader_type, modloader_ve
   await fs.promises.mkdir(pjoin(DIR_CUR_INST), { recursive: true });
   await fs.promises.writeFile(pjoin(DIR_CUR_INST, 'manifest.json'), JSON.stringify(manifest));
   await fs.promises.writeFile(pjoin(DIR_CUR_INST, 'manifest_patches.json'), JSON.stringify(patches));
-  
-  await download_resources(inst_name);  
+
+  await download_resources(inst_name);
 };
 
 
@@ -220,7 +220,7 @@ export const launch_instance = async (inst_name) => {
 
 
       zip.getEntries().forEach(entry => {
-        if (entry.entryName.endsWith('.dll')) {
+        if (entry.entryName.endsWith('.dll') || entry.entryName.endsWith('.so')) {
           const unpack_path = pjoin(DIR_NATIVE, path.basename(entry.entryName));
           fs.writeFileSync(unpack_path, entry.getData());
         }
