@@ -53,14 +53,14 @@ export const Notification = ({ id, message, type = 'info', onClose }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose(id);
-    }, 3000); // auto close after 3 seconds
+    }, 15 * 1000);
     return () => clearTimeout(timer);
   }, [id, onClose]);
 
   const styles = {
-    padding: '10px 20px',
-    borderRadius: '5px',
-    marginBottom: '10px',
+    padding: '5px 5px',
+    borderRadius: '3px',
+    marginBottom: '5px',
     backgroundColor: type === 'error' ? '#e74c3c' : '#2ecc71',
     color: 'white',
     boxShadow: '0px 2px 6px rgba(0,0,0,0.3)',
@@ -94,4 +94,3 @@ export const Notification = ({ id, message, type = 'info', onClose }) => {
 
 
 
- 

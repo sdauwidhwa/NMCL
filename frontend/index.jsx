@@ -110,33 +110,8 @@ const PageInstanceCreation = ({ refreshInstances, addNotification }) => {
 };
 
 
-const LeftInstanceList = ({ setContent, addNotification }) => {
 
-  const [instanceList, setInstanceList] = useState([]);
-  const refreshInstances = async () => {
-    try {
-      setInstanceList(await window.api.list_instance());
-    } catch (error) {
-      console.error('Failed to fetch instances:', error);
-    }
-  };
-  useEffect(() => {
-    refreshInstances();
-    return () => { };
-  }, []);
-
-  return (<div>
-    <div><button onClick={() => { setContent(<PageInstanceCreation refreshInstances={refreshInstances} addNotification={addNotification} />); }}>New Instance</button></div>
-    <div><button onClick={() => { refreshInstances(); }}>Refresh Instance</button></div>
-    {instanceList.map((e, i) => {
-      return <div key={i}><button onClick={() => { setContent(<InstanceDetail instanceName={e} />) }}>{e}</button></div>;
-    })}
-
-  </div>);
-
-}
-
-let idCounter = 0;
+let notification_id_snum = 0;
 function App() {
 
 
@@ -156,13 +131,26 @@ function App() {
   const [notifications, setNotifications] = useState([]);
 
   const addNotification = (message, type = 'info') => {
-    const id = idCounter++;
+    const id = notification_id_snum++;
     setNotifications((prev) => [...prev, { id, message, type }]);
   };
 
   const removeNotification = (id) => {
     setNotifications((prev) => prev.filter((notif) => notif.id !== id));
   };
+
+  const [instanceList, setInstanceList] = useState([]);
+  const refreshInstances = async () => {
+    try {
+      setInstanceList(await window.api.list_instance());
+    } catch (error) {
+      console.error('Failed to fetch instances:', error);
+    }
+  };
+  useEffect(() => {
+    refreshInstances();
+    return () => { };
+  }, []);
 
   const onMouseUp = () => {
     isResizing.current = false;
@@ -183,20 +171,30 @@ function App() {
   </div>);
   return (
     <div className="rootWindow">
+
+      {/* notification panel */}
       <div style={{
-        position: 'fixed', top: '6px', right: '6px', zIndex: 1000, display: 'flex', flexDirection: 'column-reverse', alignItems: 'flex-end',
+        position: 'fixed', bottom: '6px', right: '6px', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
       }}>
         {notifications.map((notif) => (
           <Notification id={notif.id} key={notif.id} message={notif.message} type={notif.type} onClose={removeNotification} />
         ))}
       </div>
 
+      {/* left panel */}
       <div className="noSqueeze" style={{ width, background: "#DFD" }}>
-        <LeftInstanceList setContent={setContent} addNotification={addNotification} />
+        {/* <div><button onClick={() => { addNotification(`Dummy notification ${notification_id_snum}`, "info"); }}>Make random notification</button></div> */}
+        <div><button onClick={() => { setContent(<PageInstanceCreation refreshInstances={refreshInstances} addNotification={addNotification} />); }}>New Instance</button></div>
+        <div><button onClick={() => { refreshInstances(); }}>Refresh Instance</button></div>
+        {instanceList.map((e, i) => {
+          return <div key={i}><button onClick={() => { setContent(<InstanceDetail instanceName={e} />) }}>{e}</button></div>;
+        })}
       </div>
 
+      {/* middle resizer */}
       <div ref={resizerRef} onMouseDown={onMouseDown} style={{ width: "3px", minWidth: "3px", cursor: "ew-resize" }} />
 
+      {/* right content */}
       <div className="expand" style={{ background: "#DFD" }}>
         {content}
       </div>
