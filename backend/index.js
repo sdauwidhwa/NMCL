@@ -1,16 +1,12 @@
-
 import electron from "electron";
 import path from "path";
+import url from 'url';
+
 import { preloader } from './preloader.js';
 import * as _ from './mclauncher/core.js';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 (async () => {
-    
+
     await preloader.make_preload();
 
 
@@ -32,7 +28,8 @@ const __dirname = dirname(__filename);
             win.maximize();
             win.webContents.openDevTools();
         } else {
-            win.loadFile(path.join(__dirname, "..", "dist", "index.html"));
+            const dirname = path.dirname(url.fileURLToPath(import.meta.url));
+            win.loadFile(path.join(dirname, "..", "dist", "index.html"));
         }
 
 

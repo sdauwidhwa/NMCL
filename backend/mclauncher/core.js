@@ -4,8 +4,7 @@ import path, { join as pjoin } from 'path';
 import { format } from 'date-fns';
 import AdmZip from 'adm-zip';
 
-import { download_file } from '../utils/download_file.js';
-import { fetch } from '../utils/fetch.js'
+import { fetch, download_file } from '../utils/common.js'
 import { preloader } from '../preloader.js';
 import { evaluate_manifest } from './rules.js';
 
