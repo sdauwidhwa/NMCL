@@ -4,7 +4,8 @@ import path, { join as pjoin } from 'path';
 import { format } from 'date-fns';
 import AdmZip from 'adm-zip';
 
-import { fetch, download_file } from '../utils/common.js'
+import { fetch, download_file } from '../utils/common.js';
+import { send } from '../app.js';
 import { preloader } from '../preloader.js';
 import { evaluate_manifest } from './rules.js';
 
@@ -69,7 +70,6 @@ const fetch_manifest_fabrics = async (vanilla, fabrics) => {
 };
 
 const fetch_manifest = async (vanilla_version, modloader_type, modloader_version) => {
-  console.log("fetch_manifest", vanilla_version, modloader_type, modloader_version);
   if (vanilla_version && modloader_type === "Fabrics" && modloader_version) {
     return await fetch_manifest_fabrics(vanilla_version, modloader_version);
 
@@ -161,7 +161,6 @@ const download_resources = async (inst_name) => {
     }));
   })());
   await Promise.all(waitfor);
-  console.log("Creation complete");
 };
 
 const list_instance = async () => {
@@ -171,7 +170,7 @@ const list_instance = async () => {
     .map(item => item.name);
 };
 
-const create_instance = async (inst_name, [vanilla, modloader_type, modloader_version]) => {
+const create_instance = async ({ event_path, inst_name, version: [vanilla, modloader_type, modloader_version] }) => {
 
   let { manifest, patches } = await compose_manifest(vanilla, modloader_type, modloader_version);
 
@@ -182,12 +181,12 @@ const create_instance = async (inst_name, [vanilla, modloader_type, modloader_ve
   await fs.promises.mkdir(pjoin(DIR_CUR_INST), { recursive: true });
   await fs.promises.writeFile(pjoin(DIR_CUR_INST, 'manifest.json'), JSON.stringify(manifest));
   await fs.promises.writeFile(pjoin(DIR_CUR_INST, 'manifest_patches.json'), JSON.stringify(patches));
-
+  
   await download_resources(inst_name);
 };
 
 
-export const launch_instance = async (inst_name) => {
+export const launch_instance = async ({ inst_name }) => {
   const DIR_CUR_INST = pjoin(DIR_INSTS, inst_name);
   const manifest = evaluate_manifest(JSON.parse(await fs.promises.readFile(pjoin(DIR_CUR_INST, "manifest.json"))));
   await fs.promises.writeFile(pjoin(DIR_CUR_INST, 'manifest_evaluated.json'), JSON.stringify(manifest));
@@ -215,7 +214,6 @@ export const launch_instance = async (inst_name) => {
     const lib_name_split = lib.name.split(":");
 
     if (lib_name_split.length == 4 && lib_name_split[3] === platform) {
-      // console.log("found native:", lib.name);
       const nativeJarBuffer = fs.readFileSync(pjoin(DIR_LIBS, lib.downloads.artifact.path));
       const zip = new AdmZip(nativeJarBuffer);
 
@@ -245,7 +243,6 @@ export const launch_instance = async (inst_name) => {
       const split = lib.name.split(":");
       map.set(`${split[0]}:${split[1]}`, lib);
     }
-    // console.log(map);
     return Array.from(map.values());
   };
   const classpath = [
@@ -360,8 +357,8 @@ preloader.register_members("", {
       initial_filter_options: ["release"],
     };
   },
-  list_fabrics: async (...args) => {
-    const response = await list_fabrics(...args);
+  list_fabrics: async ({ vanilla }) => {
+    const response = await list_fabrics(vanilla);
     const STABLE = "stable";
     const NONSTABLE = "non-stable";
     return {
@@ -373,14 +370,6 @@ preloader.register_members("", {
   create_instance,
   launch_instance,
 });
-
-// preloader.register_many("", [
-//   list_instance,
-//   list_vanilla,
-//   list_fabrics,
-//   create_instance,
-//   launch_instance,
-// ]);
 
 
 
