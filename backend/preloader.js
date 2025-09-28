@@ -4,21 +4,22 @@ import fs from 'fs';
 import path from 'path';
 
 
-if (!global.instance_preloader_registry) { global.instance_preloader_registry = new Map(); }
-const registry = global.instance_preloader_registry;
+
+const registry = new Map();
 
 export const preloader = {
 
   register(path, func) {
-    console.log(`Registering ${path}`);
-    ipcMain.handle(path, (event, ...args) => { console.log(...args); return func(...args); });
+    ipcMain.handle(path, (event, ...args) => { return func(...args); });
     registry.set(path, func);
   },
+
   register_many(prefix, funcs) {
     funcs.forEach(e => {
       this.register(prefix + e.name, e);
     });
   },
+
   register_members(prefix, obj) {
     Object.entries(obj).forEach(([key, value]) => {
       if (typeof value === "function") {
@@ -26,9 +27,11 @@ export const preloader = {
       }
     });
   },
+
   get_preload_path() {
     return path.join(process.cwd(), "./.temp/preload.js");
   },
+  
   async make_preload() {
     let listString = [...registry.keys()].map(e => `"${e}"`).join(",\n");
     let content = `
@@ -58,7 +61,15 @@ function buildObjectFromList(list) {
   }
   return root;
 };
-contextBridge.exposeInMainWorld('api', buildObjectFromList(list));`;
+contextBridge.exposeInMainWorld('api', {
+  ...buildObjectFromList(list),
+});
+contextBridge.exposeInMainWorld('event_bridge', {
+  onEvent: (callback) => {
+    ipcRenderer.on("event", (event, ...message) => callback(...message));
+  }
+});
+`;
     await fs.promises.mkdir(path.dirname(this.get_preload_path()), { recursive: true });
     return await fs.promises.writeFile(this.get_preload_path(), content);
   },

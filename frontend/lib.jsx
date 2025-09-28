@@ -52,28 +52,28 @@ export const CompSingleSelectionScrolledFiltered = ({ style, content_style, onSe
 
 
 
-export const DynamicList = forwardRef((props, ref) => {
-  const [comps, setComps] = useState([]);
+export const DynamicList = forwardRef((props, self_ref) => {
+  const [comps, set_comps] = useState([]);
   const [next_key] = useState({ value: 0 });
 
   const add_comp = (func, child_props) => {
     const key = next_key.value++;
-    setComps(prev => [...prev, { key, func, props: child_props }]);
+    set_comps(prev => [...prev, { key, func, props: child_props }]);
     return key;
   };
 
   const remove_comp = (key) => {
-    setComps(prev => prev.filter(c => c.key !== key));
+    set_comps(prev => prev.filter(c => c.key !== key));
   };
 
   // New method to update a specific component
-  const update_comp = (key, newProps) => {
-    setComps(prev => prev.map(c =>
-      c.key === key ? { ...c, props: { ...c.props, ...newProps } } : c
+  const update_comp = (key, new_props) => {
+    set_comps(prev => prev.map(c =>
+      c.key === key ? { ...c, props: { ...c.props, ...new_props } } : c
     ));
   };
 
-  useImperativeHandle(ref, () => ({
+  useImperativeHandle(self_ref, () => ({
     add_comp,
     remove_comp,
     update_comp,
@@ -82,7 +82,7 @@ export const DynamicList = forwardRef((props, ref) => {
   return (
     <div {...props}>
       {comps.map(({ key, func: Comp, props }) => (
-        <Comp key={key} dlkey={key} dlparent={ref} {...props} />
+        <Comp key={key} dlkey={key} dlparent={self_ref} {...props} />
       ))}
     </div>
   );
@@ -96,7 +96,7 @@ export function ExampleApp() {
   return (
     <div>
       <button onClick={() => {
-        const new_comp = listRef.current.add_comp(SampleComponent, { text: Date.now(), progress: 0 });
+        const new_comp = listRef.current.add_comp(ProgressBar, { text: Date.now(), progress: 0 });
         // Update progress every 100ms
         let progress = 0;
         const interval = setInterval(() => {
@@ -119,7 +119,7 @@ export function ExampleApp() {
   );
 }
 
-function SampleComponent({ text, dlkey, dlparent, progress = 0 }) {
+function ProgressBar({ text, dlkey, dlparent, progress = 0 }) {
   return (
     <div className="p-2 bg-green-200 rounded mb-2">
       <div className="flex items-center justify-between">

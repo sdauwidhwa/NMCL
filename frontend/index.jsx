@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactDOM from 'react-dom/client';
 
-import { CompSingleSelectionScrolledFiltered, Notification } from "./lib";
+import './event_bridge.js'
+import { CompSingleSelectionScrolledFiltered, DynamicList, ExampleApp, Notification } from "./lib";
 
 
 
-let InstanceDetail = ({ instanceName }) => {
+let InstanceDetail = ({ inst_name }) => {
   return (<div>
-    <div>Instance {instanceName}</div>
-    <div><button onClick={() => window.api.launch_instance(instanceName)}>Launch!</button></div>
+    <div>Instance {inst_name}</div>
+    <div><button onClick={() => window.apie.launch_instance({ inst_name })}>Launch!</button></div>
   </div >);
 };
 
@@ -28,7 +29,7 @@ const PageInstanceCreation = ({ refreshInstances, addNotification }) => {
   const [modloader_version_selected, set_modloader_version_selected] = useState(null);
 
   useEffect(() => {
-    (async () => { set_vanilla_options(await window.api.list_vanilla()); })();
+    (async () => { set_vanilla_options(await window.apie.list_vanilla()); })();
   }, []);
 
   useEffect(() => {
@@ -37,7 +38,7 @@ const PageInstanceCreation = ({ refreshInstances, addNotification }) => {
     async function fetchOptions() {
       if (modloader_type_selected === FABRICS) {
         try {
-          const options = await window.api.list_fabrics(vanilla_selected);
+          const options = await window.apie.list_fabrics({ vanilla: vanilla_selected });
           if (!cancelled) {
             set_modloader_version_options(options);
           }
@@ -61,18 +62,14 @@ const PageInstanceCreation = ({ refreshInstances, addNotification }) => {
 
   const comp_button_create_and_input_name = (<div>
     <button onClick={async () => {
-      // console.log(vanilla_selected, modloader_type_selected, modloader_version_selected);
       try {
+        const version = modloader_type_selected === NONE
+          ? [vanilla_selected, null, null]
+          : [vanilla_selected, modloader_type_selected, modloader_version_selected];
+        await window.apie.create_instance({ inst_name: new_instance_name, version }, console.log);
 
-        if (modloader_type_selected === NONE) {
-          await window.api.create_instance(new_instance_name, [vanilla_selected, null, null]);
-        } else {
-          await window.api.create_instance(new_instance_name, [vanilla_selected, modloader_type_selected, modloader_version_selected]);
-        }
-        addNotification(`Instance ${new_instance_name} creation completed.`);
       } catch (err) {
-        console.error(`Instance creation failed`, vanilla_selected, modloader_type_selected, modloader_version_selected, err);
-        addNotification(`Instance ${new_instance_name} creation failed: ${err.message || err}`, "error");
+        console.error(`Instance creation failed`, vanilla_selected, modloader_type_selected, modloader_version_selected, err);        
       }
       refreshInstances();
     }}>Create Instance</button>
@@ -111,14 +108,28 @@ const PageInstanceCreation = ({ refreshInstances, addNotification }) => {
 
 
 
-let notification_id_snum = 0;
 function App() {
 
 
+
+  // instances
+  const [instanceList, setInstanceList] = useState([]);
+  const refreshInstances = async () => {
+    try {
+      setInstanceList(await window.apie.list_instance());
+    } catch (error) {
+      console.error('Failed to fetch instances:', error);
+    }
+  };
+  useEffect(() => { refreshInstances(); return () => { }; }, []);
+
+
+
+
+  // resize
   const [width, setWidth] = useState(250);
   const resizerRef = useRef(null);
   const isResizing = useRef(false);
-
   const onMouseMove = (e) => {
     if (isResizing.current) {
       const newWidth = e.clientX;
@@ -127,67 +138,49 @@ function App() {
       }
     }
   };
-
-  const [notifications, setNotifications] = useState([]);
-
-  const addNotification = (message, type = 'info') => {
-    const id = notification_id_snum++;
-    setNotifications((prev) => [...prev, { id, message, type }]);
-  };
-
-  const removeNotification = (id) => {
-    setNotifications((prev) => prev.filter((notif) => notif.id !== id));
-  };
-
-  const [instanceList, setInstanceList] = useState([]);
-  const refreshInstances = async () => {
-    try {
-      setInstanceList(await window.api.list_instance());
-    } catch (error) {
-      console.error('Failed to fetch instances:', error);
-    }
-  };
-  useEffect(() => {
-    refreshInstances();
-    return () => { };
-  }, []);
-
   const onMouseUp = () => {
     isResizing.current = false;
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("mouseup", onMouseUp);
   };
-
   const onMouseDown = () => {
     isResizing.current = true;
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
   };
 
-
+  // right panel
   let [content, setContent] = useState(<div>
     <h1>Minecraft Launcher</h1>
     <p>Welcome to NMCL!</p>
   </div>);
+
+  const listRef = useRef();
+
   return (
     <div className="rootWindow">
 
       {/* notification panel */}
-      <div style={{
-        position: 'fixed', bottom: '6px', right: '6px', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
-      }}>
+      {/* <div >
         {notifications.map((notif) => (
           <Notification id={notif.id} key={notif.id} message={notif.message} type={notif.type} onClose={removeNotification} />
         ))}
-      </div>
+      </div> */}
+      <DynamicList ref={listRef} style={{
+        position: 'fixed', bottom: '6px', right: '6px', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
+      }} />
 
       {/* left panel */}
-      <div className="noSqueeze" style={{ width, background: "#DFD" }}>
+      <div className="noSqueeze" style={{ display: "flex", flexDirection: "column", width, background: "#DFD" }}>
         {/* <div><button onClick={() => { addNotification(`Dummy notification ${notification_id_snum}`, "info"); }}>Make random notification</button></div> */}
-        <div><button onClick={() => { setContent(<PageInstanceCreation refreshInstances={refreshInstances} addNotification={addNotification} />); }}>New Instance</button></div>
+        <div><button onClick={() => { setContent(<PageInstanceCreation refreshInstances={refreshInstances} />); }}>New Instance</button></div>
         <div><button onClick={() => { refreshInstances(); }}>Refresh Instance</button></div>
+
+        <div style={{ height: "5px" }} />
         {instanceList.map((e, i) => {
-          return <div key={i}><button onClick={() => { setContent(<InstanceDetail instanceName={e} />) }}>{e}</button></div>;
+          return <div key={i} style={{ display: "flex", flex: "0 1 auto" }}>
+            <button style={{ display: "flex", flex: "1 1 auto" }} onClick={() => { setContent(<InstanceDetail inst_name={e} />) }}>{e}</button>
+          </div>;
         })}
       </div>
 
@@ -208,4 +201,12 @@ function App() {
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <App />
+  // <ExampleApp/>
 );
+
+
+
+
+
+
+
