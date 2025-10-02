@@ -57,19 +57,18 @@ export const DynamicList = forwardRef((props, self_ref) => {
   const [next_key] = useState({ value: 0 });
 
   const add_comp = (func, child_props) => {
-    const key = next_key.value++;
-    set_comps(prev => [...prev, { key, func, props: child_props }]);
-    return key;
+    const dlkey = next_key.value++;
+    set_comps(prev => [...prev, { dlkey, func, props: child_props }]);
+    return dlkey;
   };
 
-  const remove_comp = (key) => {
-    set_comps(prev => prev.filter(c => c.key !== key));
+  const remove_comp = (dlkey) => {
+    set_comps(prev => prev.filter(c => c.dlkey !== dlkey));
   };
 
-  // New method to update a specific component
-  const update_comp = (key, new_props) => {
+  const update_comp = (dlkey, new_props) => {
     set_comps(prev => prev.map(c =>
-      c.key === key ? { ...c, props: { ...c.props, ...new_props } } : c
+      c.dlkey === dlkey ? { ...c, props: { ...c.props, ...new_props } } : c
     ));
   };
 
@@ -81,8 +80,8 @@ export const DynamicList = forwardRef((props, self_ref) => {
 
   return (
     <div {...props}>
-      {comps.map(({ key, func: Comp, props }) => (
-        <Comp key={key} dlkey={key} dlparent={self_ref} {...props} />
+      {comps.map(({ dlkey, func: Comp, props }) => (
+        <Comp key={dlkey} dlkey={dlkey} dlparent={self_ref} {...props} />
       ))}
     </div>
   );
@@ -90,78 +89,33 @@ export const DynamicList = forwardRef((props, self_ref) => {
 
 
 
-export function ExampleApp() {
-  const listRef = useRef();
-
-  return (
-    <div>
-      <button onClick={() => {
-        const new_comp = listRef.current.add_comp(ProgressBar, { text: Date.now(), progress: 0 });
-        // Update progress every 100ms
-        let progress = 0;
-        const interval = setInterval(() => {
-          progress += 3.33; // 100% over 3000ms
-          if (progress >= 100) {
-            progress = 100;
-            clearInterval(interval);
-          }
-          listRef.current.update_comp(new_comp, { progress });
-        }, 100);
-
-        setTimeout(() => { listRef.current.remove_comp(new_comp); }, 3000);
-      }}>
-        Add from Sibling
-      </button>
 
 
-      <DynamicList ref={listRef} />
-    </div>
-  );
-}
 
-function ProgressBar({ text, dlkey, dlparent, progress = 0 }) {
-  return (
-    <div className="p-2 bg-green-200 rounded mb-2">
-      <div className="flex items-center justify-between">
-        <span>{`${text} key=${dlkey}`}</span>
-        <button
-          onClick={() => dlparent.current.remove_comp(dlkey)}
-          className="ml-2 px-2 py-1 bg-red-500 text-white rounded"
-        >
-          X
-        </button>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-        <div
-          className="bg-blue-600 h-2.5 rounded-full transition-all duration-100"
-          style={{ width: `${progress}%` }}
-        ></div>
-      </div>
-
-      <div className="text-xs text-gray-600 mt-1">{progress.toFixed(0)}%</div>
-    </div>
-  );
-}
-
-
-export const Notification = ({ id, message, type = 'info', onClose }) => {
+export const Notification = ({ dlparent, dlkey, closable, close_timeout, on_close, message }) => {
+  
+  const close_self = () => {
+    dlparent.current.remove_comp(dlkey);
+    if (on_close) { on_close(); }
+  };
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose(id);
-    }, 15 * 1000);
-    return () => clearTimeout(timer);
-  }, [id, onClose]);
+    let timer;
+    if (close_timeout) {
+      timer = setTimeout(() => {
+        close_self();
+      }, close_timeout);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [dlkey, on_close, close_timeout]);
 
   const styles = {
-    padding: '5px 5px',
-    borderRadius: '3px',
-    marginBottom: '5px',
-    backgroundColor: type === 'error' ? '#e74c3c' : '#2ecc71',
-    color: 'white',
-    boxShadow: '0px 2px 6px rgba(0,0,0,0.3)',
     display: 'flex',
+    padding: '3px 3px',
+    marginBottom: '3px',
+    backgroundColor: "white",
+    boxShadow: '0px 2px 6px rgba(0,0,0,0.3)',
     justifyContent: 'space-between',
     alignItems: 'center',
     minWidth: '250px',
@@ -170,19 +124,7 @@ export const Notification = ({ id, message, type = 'info', onClose }) => {
   return (
     <div style={styles}>
       <span>{message}</span>
-      <button
-        onClick={() => onClose(id)}
-        style={{
-          marginLeft: '10px',
-          background: 'transparent',
-          border: 'none',
-          color: 'white',
-          cursor: 'pointer',
-          fontWeight: 'bold',
-        }}
-      >
-        ×
-      </button>
+      {closable && <button onClick={() => close_self()}> X </button>}
     </div>
   );
 };
