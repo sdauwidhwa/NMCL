@@ -8,6 +8,7 @@ import { fetch, download_file } from '../utils/common.js';
 import { event_bridge } from '../app.js';
 
 import { evaluate_manifest } from './rules.js';
+import "./auth.js";
 
 
 
@@ -17,6 +18,7 @@ const DIR_LIBS = pjoin(DIR_MC, "libraries");
 const DIR_ASSETS = pjoin(DIR_MC, "assets");
 const DIR_ASSETS_INDEX = pjoin(DIR_ASSETS, "indexes");
 const DIR_ASSETS_OBJS = pjoin(DIR_ASSETS, "objects");
+export const PATH_ACCOUNT_JSON = pjoin(DIR_MC, "accounts.json");
 
 
 
@@ -359,6 +361,9 @@ export const launch_instance = async ({ inst_name }) => {
 
   // return javaProcess;
 };
+
+
+
 
 event_bridge.register_members("", {
   list_instance,

@@ -46,7 +46,7 @@ export const fetch = async (url, options = {}) => {
   };
   return fetch_queue.enqueue(async () => {
     let response = await make_fetch_happen_fetch(url, options);
-    if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+    if (!response.ok) throw new Error(`HTTP error ${response.status} ${await response.text()}`);
     return response;
   });
 }
