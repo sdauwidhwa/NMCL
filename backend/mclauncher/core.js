@@ -2,13 +2,12 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path, { join as pjoin } from 'path';
 import { format } from 'date-fns';
-import AdmZip from 'adm-zip';
+import adm_zip from 'adm-zip';
 
 import { fetch, download_file } from '../utils/common.js';
-import { send } from '../app.js';
-import { preloader } from '../preloader.js';
-import { evaluate_manifest } from './rules.js';
+import { event_bridge } from '../app.js';
 
+import { evaluate_manifest } from './rules.js';
 
 
 
@@ -78,48 +77,43 @@ const fetch_manifest = async (vanilla_version, modloader_type, modloader_version
 
   } else {
     throw new Error(`Invalid version ${[vanilla_version, modloader_type, modloader_version]}`);
-
   }
 }
 
-const deep_merge = (obj_base, obj_over) => {
-  // Merge objects according to Minecraft manifest rules
-  const result = { ...obj_base };
 
-  for (const [key, value_over] of Object.entries(obj_over)) {
-    const value_base = obj_base[key];
-    if (value_over === undefined || value_over === null) continue;
-
-    if (Array.isArray(value_over) && Array.isArray(value_base)) {
-      result[key] = [...value_base, ...value_over];
-    } else if (
-      typeof value_over === "object" &&
-      !Array.isArray(value_over) &&
-      typeof value_base === "object" &&
-      value_base !== null
-    ) {
-      // Deep merge for objects (like "arguments")
-      result[key] = deep_merge(value_base, value_over);
-    } else {
-      // Primitive or replace case
-      result[key] = value_over;
-    }
-  }
-
-  return result;
-};
 
 const compose_manifest = async (vanilla_version, modloader_type, modloader_version) => {
-  // Collect chain of manifests: child first, then parents
+
   let patches = [
     await fetch_manifest(vanilla_version, modloader_type, modloader_version)
   ];
-
   for (let inheritsFrom = patches[0].inheritsFrom; inheritsFrom;) {
     const cur = await fetch_manifest(inheritsFrom, null, null);
     patches.push(cur);
     inheritsFrom = cur.inheritsFrom;
   }
+  const is_plain_object = (value) => {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+  }
+
+  const deep_merge = (obj_base, obj_over) => {
+    const result = { ...obj_base };
+
+    for (const [key, value_over] of Object.entries(obj_over)) {
+      const value_base = obj_base[key];
+      if (value_over === undefined || value_over === null) continue;
+
+      if (Array.isArray(value_over) && Array.isArray(value_base)) {
+        result[key] = [...value_base, ...value_over];
+      } else if (is_plain_object(value_base) && is_plain_object(value_over)) {
+        result[key] = deep_merge(value_base, value_over);
+      } else {
+        result[key] = value_over;
+      }
+    }
+
+    return result;
+  };
 
   let manifest = {};
   for (let i = patches.length - 1; i >= 0; i--) {
@@ -136,28 +130,47 @@ const get_resource_index_path = (inst_name) => {
   return pjoin(DIR_ASSETS_INDEX, inst_name + '.json');
 };
 
-const download_resources = async (inst_name) => {
+const download_resources = async ({ inst_name, event_callback }) => {
   const dir_inst = pjoin(DIR_INSTS, inst_name);
   const manifest = evaluate_manifest(JSON.parse(await fs.promises.readFile(pjoin(dir_inst, "manifest.json"))));
 
+  let item_count_total = 0;
+  let item_count_finished = 0;
+  let update_last_time = 0;
+  const update = () => {
+    const now = performance.now();
+    if (item_count_finished === item_count_total || now - update_last_time > 20) {
+      update_last_time = now;
+      event_callback(["counts", [item_count_finished, item_count_total]]);
+    }
+  };
+  const download_file_tracked = async (...args) => {
+    item_count_total += 1;
+    update();
+    await download_file(...args);
+    item_count_finished += 1;
+    update();
+  };
+
   let waitfor = [];
   waitfor.push((async () => {
-    await download_file(manifest.assetIndex.url, get_resource_index_path(inst_name));
+    await download_file_tracked(manifest.assetIndex.url, get_resource_index_path(inst_name));
+
     const asset_index = JSON.parse(await fs.promises.readFile(get_resource_index_path(inst_name)));
     const BASE_URL = "https://resources.download.minecraft.net";
-    await Promise.all(Object.entries(asset_index.objects).map(async ([name, { hash }]) => {
-      const hash2 = hash.substring(0, 2);
-      const url = `${BASE_URL}/${hash2}/${hash}`;
-      const file_path = pjoin(DIR_ASSETS_OBJS, hash2, hash);
-      await download_file(url, file_path);
+    await Promise.all(Object.entries(asset_index.objects).map(async ([name, { hash: sha1, size }]) => {
+      const sha1_first2 = sha1.substring(0, 2);
+      const url = `${BASE_URL}/${sha1_first2}/${sha1}`;
+      const file_path = pjoin(DIR_ASSETS_OBJS, sha1_first2, sha1);
+      await download_file_tracked(url, file_path, { sha1, size });
     }));
   })());
 
-  waitfor.push(download_file(manifest.downloads.client.url, pjoin(dir_inst, "client.jar")));
-  waitfor.push(download_file(manifest.downloads.server.url, pjoin(dir_inst, "server.jar")));
+  waitfor.push(download_file_tracked(manifest.downloads.client.url, pjoin(dir_inst, "client.jar")));
+  waitfor.push(download_file_tracked(manifest.downloads.server.url, pjoin(dir_inst, "server.jar")));
   waitfor.push((async () => {
-    return Promise.all((manifest.libraries || []).map(lib => {
-      return download_file(lib.downloads.artifact.url, pjoin(DIR_LIBS, lib.downloads.artifact.path));
+    return Promise.all((manifest.libraries || []).map(async (lib) => {
+      await download_file_tracked(lib.downloads.artifact.url, pjoin(DIR_LIBS, lib.downloads.artifact.path));
     }));
   })());
   await Promise.all(waitfor);
@@ -170,7 +183,7 @@ const list_instance = async () => {
     .map(item => item.name);
 };
 
-const create_instance = async ({ event_path, inst_name, version: [vanilla, modloader_type, modloader_version] }) => {
+const create_instance = async ({ inst_name, version: [vanilla, modloader_type, modloader_version], event_callback }) => {
 
   let { manifest, patches } = await compose_manifest(vanilla, modloader_type, modloader_version);
 
@@ -181,8 +194,8 @@ const create_instance = async ({ event_path, inst_name, version: [vanilla, modlo
   await fs.promises.mkdir(pjoin(DIR_CUR_INST), { recursive: true });
   await fs.promises.writeFile(pjoin(DIR_CUR_INST, 'manifest.json'), JSON.stringify(manifest));
   await fs.promises.writeFile(pjoin(DIR_CUR_INST, 'manifest_patches.json'), JSON.stringify(patches));
-  
-  await download_resources(inst_name);
+
+  await download_resources({ inst_name, event_callback });
 };
 
 
@@ -215,7 +228,7 @@ export const launch_instance = async ({ inst_name }) => {
 
     if (lib_name_split.length == 4 && lib_name_split[3] === platform) {
       const nativeJarBuffer = fs.readFileSync(pjoin(DIR_LIBS, lib.downloads.artifact.path));
-      const zip = new AdmZip(nativeJarBuffer);
+      const zip = new adm_zip(nativeJarBuffer);
 
 
       zip.getEntries().forEach(entry => {
@@ -347,7 +360,7 @@ export const launch_instance = async ({ inst_name }) => {
   // return javaProcess;
 };
 
-preloader.register_members("", {
+event_bridge.register_members("", {
   list_instance,
   list_vanilla: async () => {
     const response = await list_vanilla();
@@ -369,6 +382,14 @@ preloader.register_members("", {
   },
   create_instance,
   launch_instance,
+  dummy_progressed_task: async ({ event_callback }) => {
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    for (let i = 0; i < 10; i++) {
+      event_callback({ i });
+      await delay(500);
+    }
+  },
 });
 
 

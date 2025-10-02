@@ -2,20 +2,20 @@ import React, { useState, useEffect, useRef } from "react";
 import ReactDOM from 'react-dom/client';
 
 import './event_bridge.js'
-import { CompSingleSelectionScrolledFiltered, DynamicList, ExampleApp, Notification } from "./lib";
+import { CompSingleSelectionScrolledFiltered, DynamicList, Notification } from "./lib.jsx";
 
 
 
 let InstanceDetail = ({ inst_name }) => {
   return (<div>
-    <div>Instance {inst_name}</div>
-    <div><button onClick={() => window.apie.launch_instance({ inst_name })}>Launch!</button></div>
+    <div><span style={{ fontSize: "24px" }} > Instance {inst_name}</span></div>
+    <div><button onClick={() => window.apie.launch_instance({ inst_name }, console.log)}>Launch!</button></div>
   </div >);
 };
 
 
 
-const PageInstanceCreation = ({ refreshInstances, addNotification }) => {
+const PageInstanceCreation = ({ refreshInstances, listRef }) => {
   const NONE = "None";
   const FABRICS = "Fabrics";
   const MODLOADER_TYPES = [NONE, FABRICS];
@@ -62,14 +62,22 @@ const PageInstanceCreation = ({ refreshInstances, addNotification }) => {
 
   const comp_button_create_and_input_name = (<div>
     <button onClick={async () => {
+      const notification_id = listRef.current.add_comp(Notification, {});
+
       try {
         const version = modloader_type_selected === NONE
           ? [vanilla_selected, null, null]
           : [vanilla_selected, modloader_type_selected, modloader_version_selected];
-        await window.apie.create_instance({ inst_name: new_instance_name, version }, console.log);
-
+        await window.apie.create_instance({ inst_name: new_instance_name, version }, ([type, content]) => {
+          if (type === "counts") {
+            listRef.current.update_comp(notification_id, { message: `Downloading ${content[0]}/${content[1]}` });
+          }
+        });
+        listRef.current.update_comp(notification_id, { closable: true, message: "Done", close_timeout: 15000 });
       } catch (err) {
-        console.error(`Instance creation failed`, vanilla_selected, modloader_type_selected, modloader_version_selected, err);        
+        console.error(`Instance creation failed`, vanilla_selected, modloader_type_selected, modloader_version_selected, err);
+        listRef.current.update_comp(notification_id, { closable: true, message: `Error: ${err.message}`, close_timeout: 15000 });
+        throw err;
       }
       refreshInstances();
     }}>Create Instance</button>
@@ -123,9 +131,6 @@ function App() {
   };
   useEffect(() => { refreshInstances(); return () => { }; }, []);
 
-
-
-
   // resize
   const [width, setWidth] = useState(250);
   const resizerRef = useRef(null);
@@ -155,25 +160,21 @@ function App() {
     <p>Welcome to NMCL!</p>
   </div>);
 
-  const listRef = useRef();
+  // notification
+  const listRef = useRef(null);
 
   return (
     <div className="rootWindow">
 
       {/* notification panel */}
-      {/* <div >
-        {notifications.map((notif) => (
-          <Notification id={notif.id} key={notif.id} message={notif.message} type={notif.type} onClose={removeNotification} />
-        ))}
-      </div> */}
       <DynamicList ref={listRef} style={{
         position: 'fixed', bottom: '6px', right: '6px', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
       }} />
 
       {/* left panel */}
       <div className="noSqueeze" style={{ display: "flex", flexDirection: "column", width, background: "#DFD" }}>
-        {/* <div><button onClick={() => { addNotification(`Dummy notification ${notification_id_snum}`, "info"); }}>Make random notification</button></div> */}
-        <div><button onClick={() => { setContent(<PageInstanceCreation refreshInstances={refreshInstances} />); }}>New Instance</button></div>
+        <div><button onClick={() => { listRef.current.add_comp(Notification, { closable: true, message: "bruh bruh" }); }}>Make random notification</button></div>
+        <div><button onClick={() => { setContent(<PageInstanceCreation refreshInstances={refreshInstances} listRef={listRef} />); }}>New Instance</button></div>
         <div><button onClick={() => { refreshInstances(); }}>Refresh Instance</button></div>
 
         <div style={{ height: "5px" }} />
@@ -201,7 +202,6 @@ function App() {
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <App />
-  // <ExampleApp/>
 );
 
 
