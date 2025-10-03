@@ -8,9 +8,6 @@ import { fetch, download_file } from '../utils/common.js';
 import { event_bridge } from '../app.js';
 
 import { evaluate_manifest } from './rules.js';
-import "./auth.js";
-
-
 
 const DIR_MC = pjoin(process.cwd(), '.minecraft');
 const DIR_INSTS = pjoin(DIR_MC, "versions");
@@ -201,7 +198,7 @@ const create_instance = async ({ inst_name, version: [vanilla, modloader_type, m
 };
 
 
-export const launch_instance = async ({ inst_name }) => {
+export const launch_instance = async ({ inst_name, account_id }) => {
   const DIR_CUR_INST = pjoin(DIR_INSTS, inst_name);
   const manifest = evaluate_manifest(JSON.parse(await fs.promises.readFile(pjoin(DIR_CUR_INST, "manifest.json"))));
   await fs.promises.writeFile(pjoin(DIR_CUR_INST, 'manifest_evaluated.json'), JSON.stringify(manifest));
@@ -278,7 +275,6 @@ export const launch_instance = async ({ inst_name }) => {
       .replace('${classpath}', classpath)
       .replace('${assets_root}', DIR_ASSETS)
       .replace('${assets_index_name}', manifest.assetIndex?.id ? inst_name : 'legacy')
-      // .replace('${assets_index_name}', inst_name || 'legacy')
       .replace('${auth_uuid}', '00000000-0000-0000-0000-000000000000')
       .replace('${auth_access_token}', '0')
       .replace('${auth_player_name}', 'player')
@@ -395,6 +391,8 @@ event_bridge.register_members("", {
       await delay(500);
     }
   },
+
+
 });
 
 

@@ -18,12 +18,6 @@ export const event_bridge = {
         ? (...args) => { send(event_path, ...args); }
         : () => { };
       return func({ ...arg, event_callback });
-      // return func({ ...arg, event_callback }, event_callback);
-      // if (typeof (event_path) === 'string') {
-      //   return func({ ...arg, event_callback: (...args) => { send(event_path, ...args); } });
-      // } else {
-      //   return func({ ...arg, event_callback: () => { } });
-      // }
     });
     event_registry.set(path, func);
   },
@@ -93,6 +87,7 @@ contextBridge.exposeInMainWorld('event_bridge', {
 export const start = async () => {
 
   await import('./mclauncher/core.js');
+  await import('./mclauncher/auth.js');
   await event_bridge.make_preload();
 
 

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 
 import './event_bridge.js'
 import { CompSingleSelectionScrolledFiltered, DynamicList, Notification } from "./lib.jsx";
+import { register, unregister } from "./event_bridge.js";
 
 
 
@@ -13,7 +14,31 @@ let InstanceDetail = ({ inst_name }) => {
   </div >);
 };
 
+const PageAccounts = () => {
+  const [accounts, set_accounts] = useState([]);
+  const refresh = async () => { set_accounts(await globalThis.apie.get_accounts()); };
+  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    const EVENT_NAME = "account_refresh_push";
+    register(EVENT_NAME, () => { refresh(); });
+    return () => { unregister(EVENT_NAME); };
+  }, []);
 
+  return (<div>
+    <div><span style={{ fontSize: "24px" }}> Manage Accounts</span></div>
+    <div>
+      <button onClick={() => { globalThis.apie.open_auth_webpage(); }}>Add</button>
+      <button onClick={() => { refresh(); }}>Refresh</button>
+    </div>
+    {Object.entries(accounts).map(([id, v]) => {
+      return (<div key={id}>
+        {id}:
+        {JSON.stringify(v)}
+        <button onClick={() => { globalThis.apie.remove_account({  id }) }}> X </button>
+      </div>);
+    })}
+  </div>);
+};
 
 const PageInstanceCreation = ({ refreshInstances, listRef }) => {
   const NONE = "None";
@@ -176,6 +201,7 @@ function App() {
         <div><button onClick={() => { listRef.current.add_comp(Notification, { closable: true, message: "bruh bruh" }); }}>Make random notification</button></div>
         <div><button onClick={() => { setContent(<PageInstanceCreation refreshInstances={refreshInstances} listRef={listRef} />); }}>New Instance</button></div>
         <div><button onClick={() => { refreshInstances(); }}>Refresh Instance</button></div>
+        <div><button onClick={() => { setContent(<PageAccounts />); }}>Accounts</button></div>
 
         <div style={{ height: "5px" }} />
         {instanceList.map((e, i) => {
