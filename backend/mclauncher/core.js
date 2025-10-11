@@ -4,11 +4,11 @@ import path, { join as pjoin } from 'path';
 import { format } from 'date-fns';
 import adm_zip from 'adm-zip';
 
-import { fetch, download_file } from '../utils/common.js';
+import { fetch, download_file, object_file_mapper } from '../utils/common.js';
 import { event_bridge } from '../app.js';
 
 import { evaluate_manifest } from './rules.js';
-
+import { use_account } from './auth.js';
 
 
 const DIR_MC = pjoin(process.cwd(), '.minecraft');
@@ -17,6 +17,8 @@ const DIR_LIBS = pjoin(DIR_MC, "libraries");
 const DIR_ASSETS = pjoin(DIR_MC, "assets");
 const DIR_ASSETS_INDEX = pjoin(DIR_ASSETS, "indexes");
 const DIR_ASSETS_OBJS = pjoin(DIR_ASSETS, "objects");
+const PATH_ACCOUNT_JSON = pjoin(DIR_MC, "accounts.json");
+export const mc_account_file = new object_file_mapper(PATH_ACCOUNT_JSON, () => { return { next: 1, accounts: {} } });
 
 
 
@@ -184,6 +186,8 @@ const list_instance = async () => {
 };
 
 const create_instance = async ({ inst_name, version: [vanilla, modloader_type, modloader_version], event_callback }) => {
+  if (inst_name == "") throw new Error("Insance name could not be empty.");
+  if ((await list_instance()).includes(inst_name)) throw new Error("Instance already exists.");
 
   let { manifest, patches } = await compose_manifest(vanilla, modloader_type, modloader_version);
 
@@ -199,7 +203,9 @@ const create_instance = async ({ inst_name, version: [vanilla, modloader_type, m
 };
 
 
-export const launch_instance = async ({ inst_name }) => {
+export const launch_instance = async ({ inst_name, selected_account }) => {
+  const acc = await use_account(selected_account);
+
   const DIR_CUR_INST = pjoin(DIR_INSTS, inst_name);
   const manifest = evaluate_manifest(JSON.parse(await fs.promises.readFile(pjoin(DIR_CUR_INST, "manifest.json"))));
   await fs.promises.writeFile(pjoin(DIR_CUR_INST, 'manifest_evaluated.json'), JSON.stringify(manifest));
@@ -269,23 +275,33 @@ export const launch_instance = async ({ inst_name }) => {
 
   // Replace placeholders in arguments (common Minecraft placeholders)
   const replacePlaceholders = (arg) => {
-    return arg
+    arg = arg
       .replace('${natives_directory}', DIR_NATIVE)
       .replace('${launcher_name}', 'CustomLauncher')
       .replace('${launcher_version}', '1.0')
       .replace('${classpath}', classpath)
       .replace('${assets_root}', DIR_ASSETS)
       .replace('${assets_index_name}', manifest.assetIndex?.id ? inst_name : 'legacy')
-      // .replace('${assets_index_name}', inst_name || 'legacy')
-      .replace('${auth_uuid}', '00000000-0000-0000-0000-000000000000')
-      .replace('${auth_access_token}', '0')
-      .replace('${auth_player_name}', 'player')
       .replace('${user_type}', 'mojang')
       .replace('${version_name}', manifest.id || 'unknown')
       .replace('${version_type}', manifest.type || 'release')
       .replace('${game_directory}', DIR_CUR_INST)
       .replace('${resolution_width}', '854')
       .replace('${resolution_height}', '480');
+
+    if (selected_account) {
+      arg = arg
+        .replace('${auth_uuid}', acc.uuid)
+        .replace('${auth_access_token}', acc.access_token)
+        .replace('${auth_player_name}', acc.username)
+    } else {
+      arg = arg
+        .replace('${auth_uuid}', '00000000-0000-0000-0000-000000000000')
+        .replace('${auth_access_token}', '0')
+        .replace('${auth_player_name}', 'player')
+    }
+
+    return arg;
   };
 
   // Prepare final arguments

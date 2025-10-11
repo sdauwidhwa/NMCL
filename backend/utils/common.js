@@ -159,3 +159,72 @@ export const get_file_hash = async (input, algorithms = ['sha256']) => new Promi
 
 
 
+
+export class object_file_mapper {
+  file_path;
+  default_generator;
+  data;
+  timer;
+  timeout_msec;
+
+  constructor(file_path, default_generator, timeout_msec = 100) {
+    this.file_path = path.resolve(file_path);
+    if (typeof default_generator !== "function") { throw new TypeError("register() expects a function that returns default object"); }
+    this.default_generator = default_generator;
+    this.data = null;
+    this.timer = null;
+    this.timeout_msec = timeout_msec;
+  }
+
+  async get() {
+    if (this.data) {
+      return this.data;
+    }
+
+    try {
+      const content = await fs.promises.readFile(this.file_path, "utf8");
+      this.data = JSON.parse(content);
+      this.timer = setTimeout(() => {
+        this.data = null;
+        this.timer = null;
+      }, this.timeout_msec);
+    } catch (err) {
+      if (err.code === "ENOENT") {
+        const data = this.default_generator();
+        this.set(data);
+        return data;
+        // await this._write();
+        // set_expire();
+      } else {
+        throw err;
+      }
+    }
+    return this.data;
+  }
+
+  set(data) {
+    this.data = data;
+    if (this.timer) { clearTimeout(this.timer); }
+    this.timer = setTimeout(async () => {
+      await this._write();
+      this.timer = null;
+      this.data = null;
+    }, this.timeout_msec);
+  }
+
+
+  async _write() {
+    console.log("write");
+    try {
+      const json = JSON.stringify(this.data, null, 2);
+      await fs.promises.mkdir(path.dirname(this.file_path), { recursive: true });
+      await fs.promises.writeFile(this.file_path, json, "utf8");
+    } catch (err) {
+      throw new Error(`Failed saving file: ${this.file_path}`, err);
+    }
+  }
+}
+
+
+
+
