@@ -93,6 +93,7 @@ contextBridge.exposeInMainWorld('event_bridge', {
 export const start = async () => {
 
   await import('./mclauncher/core.js');
+  await import('./mclauncher/auth.js');
   await event_bridge.make_preload();
 
 

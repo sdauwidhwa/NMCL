@@ -6,17 +6,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NMCL</title>
   <style>
+    
     html,
-    body {
+    body,
+    .root {
       height: 100%;
       margin: 0;
-    }
-
-    .rootWindow {
       display: flex;
       flex-direction: row;
-      height: 100vh;
-      width: 100vw;
+      flex: 1 1 auto;
+    }
+    .root {
+      min-width: 600px;
+      min-height: 600px;
     }
 
     .noSqueeze {
@@ -35,6 +37,7 @@
 
     .scrollWindow {
       display: flex;
+      flex: 1 1 auto;
       flex-direction: column;
       max-height: 100%;
       overflow: hidden;
@@ -43,16 +46,28 @@
 
     .scrollContent {
       flex: 1 1 auto;
-      overflow-y: auto;
+      overflow-y: scroll;
       max-height: 100%;
       min-height: 0%;
     }
 
+    button {
+      border-radius: 0;
+      margin: 0px 0px 0px 0px;
+      border: 1px solid #ccc;
+      padding: 2px 5px 2px 5px;
+      background: #f0f0f0;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #e0e0e0;
+    }
   </style>
 </head>
 
 <body>
-  <div id="root"></div>
+  <div id="root" class="root"></div>
   <script type="module" src="/index.jsx"></script>
 </body>
 

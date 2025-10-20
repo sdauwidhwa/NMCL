@@ -1,17 +1,72 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactDOM from 'react-dom/client';
 
-import './event_bridge.js'
+
 import { CompSingleSelectionScrolledFiltered, DynamicList, Notification } from "./lib.jsx";
+import { register, unregister } from "./event_bridge.js";
 
 
+const PageAccounts = ({ on_select_account }) => {
+
+  const [accounts, set_accounts] = useState([]);
+  const [selected_account, set_selected_account_raw] = useState(null);
+  const set_selected_account = (acc_id) => {
+    set_selected_account_raw(acc_id);
+    if (on_select_account) on_select_account(acc_id);
+  }
+
+  const refresh_accounts = async () => {
+    const acc = await globalThis.apie.get_accounts();
+    set_accounts(acc);
+    
+    const acc2 = Object.entries(acc);
+    if (acc2.length > 0) {
+      set_selected_account(acc2[0][0]);
+    }
+  };
+
+  useEffect(() => {
+    const EVENT_NAME = "account_refresh_push";
+    register(EVENT_NAME, () => { refresh_accounts(); });
+    refresh_accounts();
+    return () => { unregister(EVENT_NAME); };
+  }, []);
+
+  return (<div>
+    <div><span style={{ fontSize: "24px" }}> Manage Accounts</span></div>
+    <div>
+      <button onClick={() => { globalThis.apie.open_auth_webpage(); }}>Add</button>
+      <button onClick={() => { refresh_accounts(); }}>Refresh</button>
+    </div>
+
+    {Object.entries(accounts).map(([id, acc]) => {
+      const delete_button = <button onClick={() => { globalThis.apie.remove_account({ id }); }}> Remove </button>;
+      const selected = selected_account === id;
+      const account_display =
+        on_select_account
+          ? <button style={{ backgroundColor: selected ? "#acb7ceff" : null }} onClick={() => { set_selected_account_raw(id) }}>{acc.minecraft.username}</button>
+          : <span>{acc.minecraft.username}</span>;
+      return <div key={id}>{account_display}{delete_button}</div>;
+    })}
+
+  </div>);
+};
 
 let InstanceDetail = ({ inst_name }) => {
+  const [selected_account, set_selected_account] = useState(null);
+  const [show_account_panel, set_show_account_panel] = useState();
+
+
+
   return (<div>
     <div><span style={{ fontSize: "24px" }} > Instance {inst_name}</span></div>
-    <div><button onClick={() => window.apie.launch_instance({ inst_name }, console.log)}>Launch!</button></div>
+    <div><button onClick={() => window.apie.launch_instance({ inst_name, selected_account }, console.log)}>Launch!</button></div>
+    <div><PageAccounts on_select_account={set_selected_account} /></div>
   </div >);
 };
+
+
+
 
 
 
@@ -63,7 +118,7 @@ const PageInstanceCreation = ({ refreshInstances, listRef }) => {
   const comp_button_create_and_input_name = (<div>
     <button onClick={async () => {
       const notification_id = listRef.current.add_comp(Notification, {});
-
+      listRef.current.update_comp(notification_id, { message: `Downloading` });
       try {
         const version = modloader_type_selected === NONE
           ? [vanilla_selected, null, null]
@@ -75,9 +130,8 @@ const PageInstanceCreation = ({ refreshInstances, listRef }) => {
         });
         listRef.current.update_comp(notification_id, { closable: true, message: "Done", close_timeout: 15000 });
       } catch (err) {
-        console.error(`Instance creation failed`, vanilla_selected, modloader_type_selected, modloader_version_selected, err);
-        listRef.current.update_comp(notification_id, { closable: true, message: `Error: ${err.message}`, close_timeout: 15000 });
-        throw err;
+        const new_err = new Error(`Instance creation failed.`, err);
+        listRef.current.update_comp(notification_id, { closable: true, message: `${new_err} ${err}`, close_timeout: 15000 });
       }
       refreshInstances();
     }}>Create Instance</button>
@@ -86,27 +140,36 @@ const PageInstanceCreation = ({ refreshInstances, listRef }) => {
     <input value={new_instance_name} onChange={({ target: { value } }) => set_new_instance_name(value.replace(/[<>:"/\\|?*]/g, ""))} />
   </div>);
 
+  const section_style = { margin: "0px 3px 10px 3px", border: "1px solid black", padding: "2px" };
 
   return (
     <div className="expand">
       <div><span style={{ fontSize: "24px" }} > Instance Creation</span></div>
       {comp_button_create_and_input_name}
       <div className="expand">
+        <div>Select Minecraft version</div>
+        <div className="expand" style={{ flex: "2", ...section_style }}>
+          {vanilla_options && <CompSingleSelectionScrolledFiltered
+            onSelect={set_vanilla_selected}
+            options={vanilla_options}
+          />}
+        </div>
 
-        {vanilla_options && <CompSingleSelectionScrolledFiltered
-          onSelect={set_vanilla_selected}
-          options={vanilla_options}
-        />}
+        <div>Select Mod Loader</div>
+        <div className="expand" style={{ flex: "0 0 60px", ...section_style }}>
+          {vanilla_options && <CompSingleSelectionScrolledFiltered
+            onSelect={set_modloader_type_selected}
+            options={modloader_type_options}
+          />}
+        </div>
 
-        {vanilla_options && <CompSingleSelectionScrolledFiltered
-          onSelect={set_modloader_type_selected}
-          options={modloader_type_options}
-        />}
-
-        {(vanilla_options && vanilla_selected && modloader_type_selected && modloader_version_options) && <CompSingleSelectionScrolledFiltered
-          onSelect={set_modloader_version_selected}
-          options={modloader_version_options}
-        />}
+        <div>Select Mod Loader version</div>
+        <div className="expand" style={{ flex: "1", ...section_style }}>
+          {(vanilla_options && vanilla_selected && modloader_type_selected && modloader_version_options) && <CompSingleSelectionScrolledFiltered
+            onSelect={set_modloader_version_selected}
+            options={modloader_version_options}
+          />}
+        </div>
 
       </div>
       {comp_button_create_and_input_name}
@@ -116,7 +179,7 @@ const PageInstanceCreation = ({ refreshInstances, listRef }) => {
 
 
 
-function App() {
+const App = () => {
 
 
 
@@ -164,7 +227,7 @@ function App() {
   const listRef = useRef(null);
 
   return (
-    <div className="rootWindow">
+    <div className="expand" style={{ flexDirection: "row" }}>
 
       {/* notification panel */}
       <DynamicList ref={listRef} style={{
@@ -173,23 +236,26 @@ function App() {
 
       {/* left panel */}
       <div className="noSqueeze" style={{ display: "flex", flexDirection: "column", width, background: "#DFD" }}>
-        <div><button onClick={() => { listRef.current.add_comp(Notification, { closable: true, message: "bruh bruh" }); }}>Make random notification</button></div>
+
+
         <div><button onClick={() => { setContent(<PageInstanceCreation refreshInstances={refreshInstances} listRef={listRef} />); }}>New Instance</button></div>
         <div><button onClick={() => { refreshInstances(); }}>Refresh Instance</button></div>
-
-        <div style={{ height: "5px" }} />
         {instanceList.map((e, i) => {
           return <div key={i} style={{ display: "flex", flex: "0 1 auto" }}>
             <button style={{ display: "flex", flex: "1 1 auto" }} onClick={() => { setContent(<InstanceDetail inst_name={e} />) }}>{e}</button>
           </div>;
         })}
+
+        <div style={{ height: "5px" }} />
+        <div><button onClick={() => { setContent(<PageAccounts />); }}>Accounts</button></div>
+        <div><button onClick={() => { listRef.current.add_comp(Notification, { closable: true, message: "bruh bruh" }); }}>Make random notification</button></div>
       </div>
 
       {/* middle resizer */}
       <div ref={resizerRef} onMouseDown={onMouseDown} style={{ width: "3px", minWidth: "3px", cursor: "ew-resize" }} />
 
       {/* right content */}
-      <div className="expand" style={{ background: "#DFD" }}>
+      <div className="expand" style={{ background: "#DFD", padding: "2px" }}>
         {content}
       </div>
     </div>
