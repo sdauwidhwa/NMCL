@@ -18,7 +18,7 @@ const PageAccounts = ({ on_select_account }) => {
   const refresh_accounts = async () => {
     const acc = await globalThis.apie.get_accounts();
     set_accounts(acc);
-    
+
     const acc2 = Object.entries(acc);
     if (acc2.length > 0) {
       set_selected_account(acc2[0][0]);
@@ -226,6 +226,14 @@ const App = () => {
   // notification
   const listRef = useRef(null);
 
+  const FullWidthButton = ({ content, on_click, key }) => {
+    return <div style={{ display: "flex", flex: "0 1 auto" }}>
+      <button onClick={on_click} style={{ display: "flex", flex: "1 1 auto" }}>{content}</button>
+    </div>;
+  };
+
+
+
   return (
     <div className="expand" style={{ flexDirection: "row" }}>
 
@@ -237,16 +245,21 @@ const App = () => {
       {/* left panel */}
       <div className="noSqueeze" style={{ display: "flex", flexDirection: "column", width, background: "#DFD" }}>
 
+        <div>Instances</div>
 
-        <div><button onClick={() => { setContent(<PageInstanceCreation refreshInstances={refreshInstances} listRef={listRef} />); }}>New Instance</button></div>
-        <div><button onClick={() => { refreshInstances(); }}>Refresh Instance</button></div>
         {instanceList.map((e, i) => {
           return <div key={i} style={{ display: "flex", flex: "0 1 auto" }}>
             <button style={{ display: "flex", flex: "1 1 auto" }} onClick={() => { setContent(<InstanceDetail inst_name={e} />) }}>{e}</button>
           </div>;
         })}
 
-        <div style={{ height: "5px" }} />
+        <div style={{ display: "flex", flex: "0 1 auto" }}>
+          <button style={{ display: "flex", flex: "1 1 auto" }} onClick={() => { setContent(<PageInstanceCreation refreshInstances={refreshInstances} listRef={listRef} />); }}>New</button>
+          <button style={{ display: "flex", flex: "1 1 auto" }} onClick={() => { refreshInstances(); }}>Refresh</button>
+        </div>
+
+
+        <div style={{ height: "10px" }} />
         <div><button onClick={() => { setContent(<PageAccounts />); }}>Accounts</button></div>
         <div><button onClick={() => { listRef.current.add_comp(Notification, { closable: true, message: "bruh bruh" }); }}>Make random notification</button></div>
       </div>

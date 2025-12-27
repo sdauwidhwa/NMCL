@@ -23,34 +23,9 @@ const NMCL_MICROSOFT_ENTRA_APP_ID = "b0f8ad58-6580-4286-99e6-b3904832aa54";
 
 const read_accounts_file = async () => {
   return mc_account_file.get();
-  // try {
-  //   const data = await fs.promises.readFile(PATH_ACCOUNT_JSON, "utf8");
-
-  //   if (!data.trim()) {
-  //     return { next: 1, accounts: {} };
-  //   }
-
-  //   const json = JSON.parse(data);
-
-  //   if (
-  //     typeof json !== "object" ||
-  //     typeof json.next !== "number" ||
-  //     typeof json.accounts !== "object"
-  //   ) {
-  //     throw new Error("Invalid accounts.json structure");
-  //   }
-
-  //   return json;
-  // } catch (err) {
-  //   if (err.code === "ENOENT") {
-  //     return { next: 1, accounts: {} };
-  //   }
-  //   throw err;
-  // }
 };
 const write_accounts_file = async (data) => {
   mc_account_file.set(data);
-  // await fs.promises.writeFile(PATH_ACCOUNT_JSON, JSON.stringify(data, null, 4), "utf8");
   const EVENT_NAME = "account_refresh_push";
   send(EVENT_NAME, null);
 };
@@ -271,3 +246,5 @@ event_bridge.register_members("", {
   remove_account: async ({ id }) => remove_account(id),
   open_auth_webpage,
 })
+
+

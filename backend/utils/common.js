@@ -46,7 +46,7 @@ export const fetch = async (url, options = {}) => {
   };
   return fetch_queue.enqueue(async () => {
     let response = await make_fetch_happen_fetch(url, options);
-    if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+    if (!response.ok) throw new Error(`HTTP error ${response.status} response ${await response.text()}`);
     return response;
   });
 }
@@ -193,8 +193,6 @@ export class object_file_mapper {
         const data = this.default_generator();
         this.set(data);
         return data;
-        // await this._write();
-        // set_expire();
       } else {
         throw err;
       }
