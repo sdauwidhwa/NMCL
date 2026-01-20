@@ -1,7 +1,7 @@
 node_modules
-dist
-build
-preload.js
-.minecraft
-.temp
-scratch.js
+build-main
+build-defs
+build-renderer
+build-redist
+.vite
+.DS_Store

@@ -1,54 +1,55 @@
 {
   "name": "nmcl",
-  "version": "0.2.0",
-  "description": "",
-  "scripts": {
-    "build": "vite build && electron-builder",
-    "dev": "cross-env NODE_ENV=development concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
-    "clean": "rimraf build dist .minecraft .temp",
-    "win-test": "\".\\build\\win-unpacked\\nmcl\""
+  "description": "NodeJS Minecraft Launcher",
+  "author": {
+    "name": "sdauwidhwa"
   },
-  "main": "./backend/index.js",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "build-main/index.js",
+  "scripts": {
+    "build:src": "tsc -p main/tsconfig.json",
+    "build:defs": "node ./build-main/index.js --export-types",
+    "build:renderer": "vite build --config renderer/vite.config.ts",
+    "build": "npm run build:src && npm run build:defs && npm run build:renderer && electron-builder",
+    "dev:renderer": "vite dev --config renderer/vite.config.ts",
+    "dev:main": "wait-on http://localhost:5173 && electron ./build-main/index.js",
+    "dev:both": "npm run build:src && npm run build:defs && run-p -l -r dev:renderer dev:main",
+    "dev": "nodemon --watch main --ext ts --legacy-watch --signal SIGTERM --exec \"npm run dev:both || exit 1\""    
+  },
   "build": {
-    "directories": {
-      "output": "build"
-    },
+    "asar": false,
+    "appId": "com.example.nmclapp",
     "files": [
-      "backend/**/*",
-      "dist/**/*"
+      "build-main/**/*",
+      "build-renderer/**/*",
+      "build-defs/**/*",
+      "package.json"
     ],
-    "asar": true,
-    "win": {
-      "target": [
-        "dir"
-      ]
+    "directories": {
+      "output": "build-redist"
     },
-    "linux": {
-      "target": [
-        "AppImage"
-      ]
+    "extraMetadata": {
+      "main": "build-main/index.js"
     }
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
   "dependencies": {
-    "adm-zip": "^0.5.16",
-    "date-fns": "^4.1.0",
-    "express": "^5.1.0",
-    "make-fetch-happen": "^15.0.1",
-    "open": "^10.2.0",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "ts-morph": "^22.0.0"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1",
-    "cross-env": "^10.0.0",
-    "electron": "^38.1.0",
-    "electron-builder": "^26.0.12",
-    "rimraf": "^6.0.1",
-    "vite-react": "^4.0.0",
-    "wait-on": "^8.0.5"
+    "@types/node": "^22.10.1",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^39.2.7",
+    "electron-builder": "^24.13.3",
+    "nodemon": "^3.1.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.6.3",
+    "vite": "^7.3.0",
+    "wait-on": "^7.2.0"
   }
 }

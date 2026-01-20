@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "allowImportingTsExtensions": true,
+    "strict": true,
+    "noEmit": true,
+    "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": [
+    "./**/*.ts",
+    "./**/*.tsx",
+    "./**/*.d.ts",
+    "../build-defs/**/*.d.ts"
+  ]
+}
